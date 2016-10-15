@@ -1,11 +1,11 @@
 import serial
+import threading
+import Queue
 
 from crccheck.crc import Crc8
-
 from serial.tools.list_ports import comports
-from serial.tools import hexlify_codec
 from Tkinter import *
-import ttk
+
 
 # -- Custom commands, not listed in the original protocol
 #
@@ -76,16 +76,21 @@ portMenu = Menu(menubar, tearoff = 0)
 devMenu = Menu(menubar, tearoff = 0)
 
 default_commands_lf = LabelFrame(root, text = "Default commands",padx=12,pady=20,labelanchor=N)
-default_commands_lf.grid(row=0)
+default_commands_lf.grid(row=0,sticky=W)
 
 cups_commands_lf = LabelFrame(root, text = "Cups commands",padx=12,pady=25,labelanchor=N)
 
 
-custom_button = Button(cups_commands_lf, text = "Next Task", command = lambda: send_cmd(assemble_packet(C_NT, CUPS)), width = custom_button_width).grid()
-custom_button = Button(cups_commands_lf, text = "Restart Task", command = lambda: send_cmd(assemble_packet(C_RCT, CUPS)), width = custom_button_width).grid()
-custom_button = Button(cups_commands_lf, text = "Test 7-seg display", command = lambda: send_cmd(assemble_packet(C_T7SD, CUPS)), width = custom_button_width).grid()
-custom_button = Button(cups_commands_lf, text = "What task is active?", command = lambda: send_cmd(assemble_packet(C_WTIS, CUPS)), width = custom_button_width).grid()
-custom_button = Button(cups_commands_lf, text = "Silence detection threshold?", command = lambda: send_cmd(assemble_packet(C_WITVSD, CUPS)), width = custom_button_width).grid()
+custom_button = Button(cups_commands_lf, text = "Next Task",
+                       command = lambda: send_cmd(assemble_packet(C_NT, CUPS)), width = custom_button_width).grid()
+custom_button = Button(cups_commands_lf, text = "Restart Task",
+                       command = lambda: send_cmd(assemble_packet(C_RCT, CUPS)), width = custom_button_width).grid()
+custom_button = Button(cups_commands_lf, text = "Test 7-seg display",
+                       command = lambda: send_cmd(assemble_packet(C_T7SD, CUPS)), width = custom_button_width).grid()
+custom_button = Button(cups_commands_lf, text = "What task is active?",
+                       command = lambda: send_cmd(assemble_packet(C_WTIS, CUPS)), width = custom_button_width).grid()
+custom_button = Button(cups_commands_lf, text = "Silence detection threshold?",
+                       command = lambda: send_cmd(assemble_packet(C_WITVSD, CUPS)), width = custom_button_width).grid()
 
 horses_commands_lf = LabelFrame(root, text = "Horses commands",padx=12,pady=16,labelanchor=N)
             
@@ -106,11 +111,38 @@ motor2_lf.grid(column=3, row=1)
 custom_button = Radiobutton(motor2_lf, text = "Forward", value=3, variable=_motor_selection).grid()
 custom_button = Radiobutton(motor2_lf, text = "Reverse", value=4, variable=_motor_selection).grid()
 
-motor_spin_button = Button(horses_commands_lf, text = "Spin!", command = lambda: send_cmd(assemble_packet(H_TVS, HORSES, convert_motor_speed(), chr(_motor_selection.get()) ))).grid(row=4,columnspan=4,sticky=W+E)
+motor_spin_button = Button(horses_commands_lf, text = "Spin!",
+                           command = lambda: send_cmd(assemble_packet(H_TVS, HORSES, convert_motor_speed(),
+                                                                      chr(_motor_selection.get()) ))).grid(row=4,columnspan=4,sticky=W+E)
 
 motor_speed_slider = Scale(horses_commands_lf, orient=HORIZONTAL, to=255, label="Speed:", variable=_motor_speed).grid(row=3,columnspan=4,sticky=W+E)
 
 port_last_used=None
+
+
+rx_msg_box_text = StringVar()
+
+msg_box_lf = LabelFrame(root, text="Terminal")
+msg_box_lf.grid(row=2, columnspan=2, sticky=W+E)
+
+
+rx_msg_box = Entry(msg_box_lf, width=30, state="readonly", textvariable=rx_msg_box_text)
+rx_msg_box.grid(row=0,column=1, columnspan=2, sticky=W+E, ipadx=30)
+
+tx_msg_box = Entry(msg_box_lf, width=30)
+tx_msg_box.grid(row=1,column=1, columnspan=2, sticky=W+E, ipadx=30)
+
+rx_msg_box_label = Label(msg_box_lf, text="RX")
+rx_msg_box_label.grid(row=0,column=0)
+
+
+tx_msg_box_label = Label(msg_box_lf, text="TX")
+tx_msg_box_label.grid(row=1,column=0)
+
+tx_button = Button(msg_box_lf, text="Send!",
+                       command=lambda: None, height=2).grid(row=0, rowspan=2, column=3, sticky=E)
+
+
 
 def convert_motor_speed():
     return(chr(255-_motor_speed.get()))  
@@ -130,12 +162,12 @@ def assemble_packet(_cmd, _dev, _speed = None, _motor_sel = None):
     return outgoing_packet
 
 def select_port(_port):
+    global port_last_used
+
     print(str(_device_selection.get()))
     print(_port)
     print(port_last_used)
 
-    global port_last_used
-    
     if(ser.is_open==True):
         if(_port == port_last_used):
             ser.close()
@@ -165,10 +197,10 @@ def select_port(_port):
 def select_device(_dev):
     if(_dev == CUPS):
         horses_commands_lf.grid_forget()
-        cups_commands_lf.grid(column=1, row=0,sticky=N)
+        cups_commands_lf.grid(column=1, row=0, sticky=NW)
     if(_dev == HORSES):
         cups_commands_lf.grid_forget()  
-        horses_commands_lf.grid(column=1, row=0,sticky=N)
+        horses_commands_lf.grid(column=1, row=0, sticky=NW)
               
 
 _port_selection = IntVar()
@@ -189,16 +221,22 @@ devMenu.add_checkbutton(label="Horses", onvalue=2, offvalue=2, variable=_device_
 root.config(menu=menubar)
 
 
-default_button = Button(default_commands_lf, text = "Test",           command = lambda: send_cmd(assemble_packet(TST, CUPS)), width = default_button_width).grid()
-default_button = Button(default_commands_lf, text = "Work Start",     command = lambda: send_cmd(assemble_packet(WS, CUPS)), width = default_button_width).grid()
-default_button = Button(default_commands_lf, text = "Status Request", command = lambda: send_cmd(assemble_packet(SR, CUPS)), width = default_button_width).grid()
-default_button = Button(default_commands_lf, text = "Idle",           command = lambda: send_cmd(assemble_packet(IDLE, CUPS)), width = default_button_width).grid()
-default_button = Button(default_commands_lf, text = "System Reset",   command = lambda: send_cmd(assemble_packet(SYS_RESET, CUPS)), width = default_button_width).grid(pady=5)
+default_button = Button(default_commands_lf, text = "Test",
+                        command = lambda: send_cmd(assemble_packet(TST, CUPS)), width = default_button_width).grid()
+default_button = Button(default_commands_lf, text = "Work Start",
+                        command = lambda: send_cmd(assemble_packet(WS, CUPS)), width = default_button_width).grid()
+default_button = Button(default_commands_lf, text = "Status Request",
+                        command = lambda: send_cmd(assemble_packet(SR, CUPS)), width = default_button_width).grid()
+default_button = Button(default_commands_lf, text = "Idle",
+                        command = lambda: send_cmd(assemble_packet(IDLE, CUPS)), width = default_button_width).grid()
+default_button = Button(default_commands_lf, text = "System Reset",
+                        command = lambda: send_cmd(assemble_packet(SYS_RESET, CUPS)), width = default_button_width).grid(pady=10)
 
 default_commands_lf.grid()
 
-
-
+if(ser.is_open==True):
+    firstbyte = ser.read()
+    print(firstbyte)
 
 root.mainloop()
 
