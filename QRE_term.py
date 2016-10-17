@@ -95,7 +95,7 @@ custom_button = Button(cups_commands_lf, text = "Silence detection threshold?",
 horses_commands_lf = LabelFrame(root, text = "Horses commands",padx=12,pady=16,labelanchor=N)
             
 motor1_lf = LabelFrame(horses_commands_lf, text = "Motor 1")
-motor1_lf.grid(column=2, row=1)
+motor1_lf.grid(column=0, row=1)
 
 _motor_selection = IntVar()
 _motor_selection.set(1)
@@ -106,16 +106,20 @@ custom_button = Radiobutton(motor1_lf, text = "Reverse", value=2, variable=_moto
 
 
 motor2_lf = LabelFrame(horses_commands_lf, text = "Motor 2")
-motor2_lf.grid(column=3, row=1)
+motor2_lf.grid(column=1, row=1)
 
 custom_button = Radiobutton(motor2_lf, text = "Forward", value=3, variable=_motor_selection).grid()
 custom_button = Radiobutton(motor2_lf, text = "Reverse", value=4, variable=_motor_selection).grid()
 
 motor_spin_button = Button(horses_commands_lf, text = "Spin!",
                            command = lambda: send_cmd(assemble_packet(H_TVS, HORSES, convert_motor_speed(),
-                                                                      chr(_motor_selection.get()) ))).grid(row=4,columnspan=4,sticky=W+E)
+                                                                      chr(_motor_selection.get()) ))).grid(row=4, columnspan=4,sticky=W+E)
 
-motor_speed_slider = Scale(horses_commands_lf, orient=HORIZONTAL, to=255, label="Speed:", variable=_motor_speed).grid(row=3,columnspan=4,sticky=W+E)
+
+motor_speed_slider_lf = LabelFrame(horses_commands_lf, text="Speed")
+motor_speed_slider_lf.grid(row=3, column = 0, columnspan =4,sticky=W+E)
+motor_speed_slider = Scale(motor_speed_slider_lf, orient=HORIZONTAL, to=255, variable=_motor_speed, length=160)
+motor_speed_slider.grid(row=3, columnspan=4,sticky=W+E)
 
 port_last_used=None
 
