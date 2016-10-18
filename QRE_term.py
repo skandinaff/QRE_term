@@ -55,7 +55,7 @@ CRC_POLYNOM = "\x07"
 
 default_button_width = 16
 custom_button_width = 22
-active_device = None
+
 
 ser = serial.Serial(None, 19200, bytesize=8, parity='N', stopbits=1, xonxoff=0, rtscts=0)
 
@@ -114,12 +114,13 @@ motor_spin_button = Button(horses_commands_lf, text="Spin!",
 
 motor_speed_slider_lf = LabelFrame(horses_commands_lf, text="Speed")
 motor_speed_slider_lf.grid(row=3, column=0, columnspan=4, sticky=W + E)
-motor_speed_slider = Scale(motor_speed_slider_lf, orient=HORIZONTAL, to=255, variable=_motor_speed, length=160)
+motor_speed_slider = Scale(motor_speed_slider_lf, orient=HORIZONTAL, to=254, variable=_motor_speed, length=160)
 motor_speed_slider.grid(row=3, columnspan=4, sticky=W + E)
 
 port_last_used = None
 
 rx_msg_box_text = StringVar()
+active_device = StringVar()
 
 msg_box_lf = LabelFrame(root, text="Terminal")
 msg_box_lf.grid(row=2, columnspan=2, sticky=W + E)
@@ -172,7 +173,7 @@ def assemble_packet(_cmd, _dev, _speed=None, _motor_sel=None):
     if (_speed == None and _motor_sel == None):
         outgoing_packet = START_B + _dev + _cmd + calc_crc8(_dev + _cmd) + STOP_B
     elif (_speed != None and _motor_sel != None):
-        outgoing_packet = START_B + _dev + _cmd + _speed + _motor_sel + calc_crc8(_dev + _cmd) + STOP_B
+        outgoing_packet = START_B + _dev + _cmd + _speed + _motor_sel + calc_crc8(_dev + _cmd + _motor_sel) + STOP_B
     return outgoing_packet
 
 
@@ -209,9 +210,13 @@ def select_device(_dev):
     if (_dev == CUPS):
         horses_commands_lf.grid_forget()
         cups_commands_lf.grid(column=1, row=0, sticky=NW)
+        active_device.set(CUPS)
+        print(active_device.get())
     if (_dev == HORSES):
         cups_commands_lf.grid_forget()
         horses_commands_lf.grid(column=1, row=0, sticky=NW)
+        active_device.set(HORSES)
+        print(active_device.get())
 
 
 _port_selection = IntVar()
@@ -234,15 +239,15 @@ devMenu.add_checkbutton(label="Horses", onvalue=2, offvalue=2, variable=_device_
 root.config(menu=menubar)
 
 default_button = Button(default_commands_lf, text="Test",
-                        command=lambda: send_cmd(assemble_packet(TST, CUPS)), width=default_button_width).grid()
+                        command=lambda: send_cmd(assemble_packet(TST, active_device.get())), width=default_button_width).grid()
 default_button = Button(default_commands_lf, text="Work Start",
-                        command=lambda: send_cmd(assemble_packet(WS, CUPS)), width=default_button_width).grid()
+                        command=lambda: send_cmd(assemble_packet(WS, active_device.get())), width=default_button_width).grid()
 default_button = Button(default_commands_lf, text="Status Request",
-                        command=lambda: send_cmd(assemble_packet(SR, CUPS)), width=default_button_width).grid()
+                        command=lambda: send_cmd(assemble_packet(SR, active_device.get())), width=default_button_width).grid()
 default_button = Button(default_commands_lf, text="Idle",
-                        command=lambda: send_cmd(assemble_packet(IDLE, CUPS)), width=default_button_width).grid()
+                        command=lambda: send_cmd(assemble_packet(IDLE, active_device.get())), width=default_button_width).grid()
 default_button = Button(default_commands_lf, text="System Reset",
-                        command=lambda: send_cmd(assemble_packet(SYS_RESET, CUPS)), width=default_button_width).grid(
+                        command=lambda: send_cmd(assemble_packet(SYS_RESET, active_device.get())), width=default_button_width).grid(
     pady=10)
 
 default_commands_lf.grid()
