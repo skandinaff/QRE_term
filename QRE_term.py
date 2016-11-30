@@ -5,6 +5,7 @@ import Queue
 from crccheck.crc import Crc8
 from serial.tools.list_ports import comports
 from Tkinter import *
+from time import sleep
 
 # -- Custom commands, not listed in the original protocol
 #
@@ -56,12 +57,14 @@ CRC_POLYNOM = "\x07"
 default_button_width = 16
 custom_button_width = 22
 
+BOMB_STAT_REQ = False
+
 
 ser = serial.Serial(None, 19200, bytesize=8, parity='N', stopbits=1, xonxoff=0, rtscts=0)
 
 root = Tk()
 root.title("QRE 485 Control terminal")
-root.geometry("380x320")
+root.geometry("380x400")
 
 ports = []
 
@@ -162,6 +165,10 @@ def convert_motor_speed():
 def send_cmd(_cmd):
     ser.write(_cmd)
 
+def bobm_cmd(_cmd):
+    while(BOMB_STAT_REQ):
+        ser.write(_cmd)
+        sleep(0.01)
 
 def calc_crc8(_packet):
     data = bytearray(_packet)
@@ -169,7 +176,9 @@ def calc_crc8(_packet):
     return chr(crc)
 
 
-def assemble_packet(_cmd, _dev, _speed=None, _motor_sel=None):
+def assemble_packet(_cmd, _dev, _speed=None, _motor_sel=None, _bomb = False):
+    if(_bomb):
+        BOMB_STAT_REQ = not BOMB_STAT_REQ
     if (_speed == None and _motor_sel == None):
         outgoing_packet = START_B + _dev + _cmd + calc_crc8(_dev + _cmd) + STOP_B
     elif (_speed != None and _motor_sel != None):
@@ -249,6 +258,10 @@ default_button = Button(default_commands_lf, text="Idle",
 default_button = Button(default_commands_lf, text="System Reset",
                         command=lambda: send_cmd(assemble_packet(SYS_RESET, active_device.get())), width=default_button_width).grid(
     pady=10)
+default_button = Button(default_commands_lf, text="Bombard with \nStatus Request",
+                        command=lambda: send_cmd(assemble_packet(SR, active_device.get())), width=default_button_width).grid(
+    pady=5)
+
 
 default_commands_lf.grid()
 
